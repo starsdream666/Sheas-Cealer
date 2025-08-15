@@ -1,0 +1,82 @@
+name: Build Sheas-Cealer
+
+# 设置为手动触发 (workflow_dispatch)
+on:
+  workflow_dispatch:
+    inputs:
+      dependency_zip_url:
+        description: '包含所有依赖项的 ZIP 包的直接下载链接'
+        required: true
+        # 将您提供的链接作为默认值
+        default: 'https://github.com/SpaceTimee/Sheas-Cealer/releases/download/1.1.4/Sheas-Cealer-Zip-1.1.4.zip'
+
+jobs:
+  build:
+    # 使用最新的 Windows 环境
+    runs-on: windows-latest
+
+    steps:
+      # 步骤 0.1: 安装 .Net 8 开发环境
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # 步骤 0.2: 克隆本项目
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 步骤 1 & 2 合并: 下载、解压并放置所有依赖项
+      - name: Download and Place Dependencies
+        shell: pwsh
+        run: |
+          # 定义下载和解压路径
+          $zipUrl = "${{ inputs.dependency_zip_url }}"
+          $zipFile = "dependencies.zip"
+          $extractPath = "temp_dependencies"
+          
+          Write-Host "Downloading dependencies from $zipUrl..."
+          Invoke-WebRequest -Uri $zipUrl -OutFile $zipFile
+          
+          Write-Host "Extracting dependencies to $extractPath..."
+          Expand-Archive -Path $zipFile -DestinationPath $extractPath -Force
+          
+          # 定义目标目录 (根据您的构建指南)
+          $sheasCoreDir = "Sheas-Cealer/../Sheas-Core/bin/Release/net8.0-windows10.0.26100.0"
+          $onaCoreDir = "Sheas-Cealer/../Ona-Core/bin/Release/net8.0-windows10.0.26100.0"
+          $exeOutputDir = "Sheas-Cealer/bin/Release/net8.0-windows10.0.26100.0"
+          
+          # 创建所有目标目录
+          New-Item -ItemType Directory -Force -Path $sheasCoreDir
+          New-Item -ItemType Directory -Force -Path $onaCoreDir
+          New-Item -ItemType Directory -Force -Path $exeOutputDir
+          
+          Write-Host "Placing dependency files into their correct locations..."
+          
+          # 移动文件到指定位置
+          Move-Item -Path "$extractPath/Sheas-Core.dll" -Destination $sheasCoreDir
+          Move-Item -Path "$extractPath/Ona-Core.dll" -Destination $onaCoreDir
+          Move-Item -Path "$extractPath/Cealing-Nginx.exe" -Destination $exeOutputDir
+          Move-Item -Path "$extractPath/Cealing-Mihomo.exe" -Destination $exeOutputDir
+          
+          Write-Host "All dependencies placed successfully."
+
+      # 步骤 3: 构建 Sheas-Cealer.exe
+      - name: Restore and Build Project
+        run: |
+          # 进入项目目录
+          cd Sheas-Cealer
+          
+          # 还原 Nuget 包
+          dotnet restore Sheas-Cealer.csproj
+          
+          # 编译项目
+          dotnet build -c Release Sheas-Cealer.csproj --no-restore
+
+      # 构建完成后，上传产物以便下载
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sheas-Cealer-Build
+          # 上传整个生成目录
+          path: Sheas-Cealer/bin/Release/net8.0-windows10.0.26100.0/
