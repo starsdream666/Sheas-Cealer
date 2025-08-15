@@ -1,18 +1,15 @@
 name: Build Sheas-Cealer
 
-# 设置为手动触发 (workflow_dispatch)
 on:
   workflow_dispatch:
     inputs:
       dependency_zip_url:
         description: '包含所有依赖项的 ZIP 包的直接下载链接'
         required: true
-        # 将您提供的链接作为默认值
         default: 'https://github.com/SpaceTimee/Sheas-Cealer/releases/download/1.1.4/Sheas-Cealer-Zip-1.1.4.zip'
 
 jobs:
   build:
-    # 使用最新的 Windows 环境
     runs-on: windows-latest
 
     steps:
@@ -26,11 +23,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 步骤 1 & 2 合并: 下载、解压并放置所有依赖项
+      # 步骤 1 & 2: 下载、解压并放置所有依赖项
       - name: Download and Place Dependencies
         shell: pwsh
         run: |
-          # 定义下载和解压路径
           $zipUrl = "${{ inputs.dependency_zip_url }}"
           $zipFile = "dependencies.zip"
           $extractPath = "temp_dependencies"
@@ -42,9 +38,9 @@ jobs:
           Expand-Archive -Path $zipFile -DestinationPath $extractPath -Force
           
           # 定义目标目录 (根据您的构建指南)
-          $sheasCoreDir = "Sheas-Cealer/../Sheas-Core/bin/Release/net8.0-windows10.0.26100.0"
-          $onaCoreDir = "Sheas-Cealer/../Ona-Core/bin/Release/net8.0-windows10.0.26100.0"
-          $exeOutputDir = "Sheas-Cealer/bin/Release/net8.0-windows10.0.26100.0"
+          $sheasCoreDir = "./Sheas-Core/bin/Release/net8.0-windows10.0.26100.0"
+          $onaCoreDir = "./Ona-Core/bin/Release/net8.0-windows10.0.26100.0"
+          $exeOutputDir = "./Sheas-Cealer/bin/Release/net8.0-windows10.0.26100.0"
           
           # 创建所有目标目录
           New-Item -ItemType Directory -Force -Path $sheasCoreDir
@@ -61,12 +57,11 @@ jobs:
           
           Write-Host "All dependencies placed successfully."
 
-      # 步骤 3: 构建 Sheas-Cealer.exe
+      # 步骤 3: 构建 Sheas-Cealer.exe (*** 已修正 ***)
       - name: Restore and Build Project
+        # 使用 working-directory 确保命令在正确的文件夹内执行
+        working-directory: ./Sheas-Cealer
         run: |
-          # 进入项目目录
-          cd Sheas-Cealer
-          
           # 还原 Nuget 包
           dotnet restore Sheas-Cealer.csproj
           
@@ -78,5 +73,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Sheas-Cealer-Build
-          # 上传整个生成目录
           path: Sheas-Cealer/bin/Release/net8.0-windows10.0.26100.0/
